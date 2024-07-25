@@ -90,11 +90,26 @@
   2dup + dup .
   dup 100 > until ;
 
-: factors
+: COUNT \ count from 0 to 100
+0
+BEGIN
+dup 100 <= WHILE
+dup . 1+ REPEAT ;
+
+: allFactors ( n1 -- )
 dup
-begin
-2dup mod 0 = IF
-. ELSE drop THEN
+BEGIN
+dup 0> WHILE
+2dup mod 0= IF 
+  dup . THEN
 1-
-dup 0 > while
-repeat ;
+REPEAT ;
+
+: GCD ( n1 n2 -- n3 )
+2dup < IF
+  swap THEN
+BEGIN
+2dup mod 0<> WHILE
+  2dup mod rot drop
+REPEAT
+swap drop ;
