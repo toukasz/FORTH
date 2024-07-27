@@ -1,58 +1,101 @@
-\ +DO, -DO...-LOOP and friends
+: ^ ( n u -- m )
+\ m = n ^ u
+  over swap
+  1 DO
+    over *
+  LOOP
+  nip ;
 
-\ This file is in the public domain. NO WARRANTY.
+: FACTORIAL ( n -- n! )
+  1 swap
+  1+ 1 DO
+    i *
+  LOOP ;
 
-\ Hmm, this would be a good application for ]] ... [[
+: UP ( n1 n2 n3 -- )
+\ n1 = step, n2 = limit, n3 = start
+  +DO
+  i .
+  dup +LOOP
+  drop ;
 
-\ The program uses the following words
-\ from CORE :
-\ : POSTPONE over min ; immediate 2dup IF swap THEN drop negate +LOOP
-\ ELSE 2drop < 1+ DO u<
-\ from CORE-EXT :
-\ ?DO u> 
-\ from BLOCK-EXT :
-\ \ 
-\ from FILE :
-\ ( 
+: DOWN ( n1 n2 n3 -- )
+\ n1 = step, n2 = limit, n3 = start
+  -DO
+  i .
+  dup -LOOP
+  drop ;
 
-: +DO ( compile-time: -- do-sys; run-time: n1 n2 -- )
-    POSTPONE over POSTPONE min POSTPONE ?do ; immediate
+: FIBONACCI ( n --- m )
+\ m = value of fibonacci at nth 
+  0 1 rot
+  1 DO
+    2dup + rot drop
+  LOOP
+  nip ;
 
-: umin ( u1 u2 -- u )
-    2dup u>
-    IF
-	swap
-    THEN
-    drop ;
+: CRASH ( n -- )
+\ crashes the program!
+  0 >r ;
 
-: U+DO ( compile-time: -- do-sys; run-time: u1 u2 -- )
-    POSTPONE over POSTPONE umin POSTPONE ?do ; immediate
+\ EXIT exits the current definition
+\ LEAVE leaves the innermost loop
 
-\ -DO...-LOOP
+: countdown ( n -- )
+  begin
+  CR dup .
+  dup 0= if
+    exit then
+  1-
+  again ;
 
-\ You have to use the -LOOP implemented below with -DO or U-DO, you
-\ cannot use it with ?DO
+\ RECURSE for recursive definitions
 
-\ The implementation is a little more complicated. Basically, we
-\ create an IF DO ... +LOOP THEN structure. The DO..+LOOP does not
-\ exhibit the anomaly of ?DO...+LOOP; the IF..THEN is needed to
-\ correct for DO's at-least-once semantics. The parameters are
-\ conditioned a bit such that the result is as expected.
+: PLUS1
+DUP .
+1+ DUP 100 > IF
+	DROP EXIT THEN
+RECURSE ;
 
-\ I define a '-do-sys' (whose implementation is 'orig do-sys'). Like
-\ ANS Forth loop structures, this implementation of -DO..-LOOP
-\ cannot be mixed with any other structures.
+: plus2 recursive
+dup .
+2 + dup 100 > if
+	drop exit then
+plus2 ;
 
-\ unlike Gforth's -LOOP, this implementation cannot handle all
-\ unsigned increments, only positive integers
-: -LOOP ( compilation -do-sys -- ; run-time loop-sys1 +n -- | loop-sys2 )
-    POSTPONE negate POSTPONE +loop
-    POSTPONE else POSTPONE 2drop POSTPONE then ; immediate
+\ I sincerely apologize for this series of terrible, terrible names.
+\ I guess naming "words" really is the hardest thing in programming.
 
-: -DO ( compilation -- -do-sys ; run-time n1 n2 -- | loop-sys )
-    POSTPONE 2dup POSTPONE < POSTPONE if
-    POSTPONE swap POSTPONE 1+ POSTPONE swap POSTPONE do ; immediate
+: fibo
+rot dup 1 = IF
+	drop . drop
+	EXIT THEN
+1- rot rot
+swap over +
+RECURSE ;
 
-: U-DO ( compilation -- -do-sys ; run-time u1 u2 -- | loop-sys )
-    POSTPONE 2dup POSTPONE u< POSTPONE if
-    POSTPONE swap POSTPONE 1+ POSTPONE swap POSTPONE do ; immediate
+: fiboinit
+0 1 fibo ;
+
+: fibon { n a b -- }
+n 1- dup 0= if
+	b . exit then
+b a b +
+recurse ;
+
+: fiboninit
+0 1 fibon ;
+
+: foo ( n1 n2 -- )
+ .s
+ >r .s
+ r@ .
+ >r .s
+ r@ .
+ r> .
+ r@ .
+ r> . ;
+
+\ The "return stack" is also avaliable for use
+: 4reverse ( x1 x2 x3 x4 -- x4 x3 x2 x1 )
+swap rot >r rot r> swap ;
