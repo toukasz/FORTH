@@ -1,33 +1,34 @@
 include tetris-pieces.fs
-include random.fs
 
-: grid_blank
-252 0 do
-	i 12 + 12 mod 0= 
-	i 1+ 12 mod 0= +
-	i 240 >= +
-	if [char] @ grid i cells + !
-	else [char] . grid i cells + ! then
-loop ;
-grid_blank
+: l-wall ( i -- ? ) 12 + 12 mod 0= ;
+: r-wall ( i -- ? ) 1+ 12 mod 0= ;
+: ground ( i -- ? ) 240 >= ;
 
-: display-integer
+: borders ( i -- ? )
+dup l-wall swap dup r-wall swap ground + + ;
+
+: @grid! ( i -- ) [char] @ swap cells grid + ! ;
+: .grid! ( i -- ) [char] . swap cells grid + ! ;
+
+: grid-setup ( -- )
+252 0 do i borders if
+	i @grid! else i .grid! then
+loop ; grid-setup
+
+: display-integer ( -- )
 252 0 do
 	i 12 mod 0= if cr then
 	grid i cells + ?
 loop ;
 
-: display-char
+: display-char ( -- )
 252 0 do
 	i 12 mod 0= if cr then
 	space grid i cells + @ emit
 loop ;
 
-variable ?piece
-0 ?piece !
-
-: print-piece ( char ?piece -- )
-dup 0= if drop I-piece exit then
+: print-piece ( char piece-type -- )
+dup 0 = if drop I-piece exit then
 dup 1 = if drop J-piece exit then
 dup 2 = if drop L-piece exit then
 dup 3 = if drop O-piece exit then
@@ -35,8 +36,8 @@ dup 4 = if drop S-piece exit then
 dup 5 = if drop T-piece exit then
 dup 6 = if drop Z-piece exit then ;
 
-: collision ( ?piece -- )
-dup 0= if drop I-collision exit then
+: collision ( piece-type -- )
+dup 0 = if drop I-collision exit then
 dup 1 = if drop J-collision exit then
 dup 2 = if drop L-collision exit then
 dup 3 = if drop O-collision exit then
@@ -44,8 +45,27 @@ dup 4 = if drop S-collision exit then
 dup 5 = if drop T-collision exit then
 dup 6 = if drop Z-collision exit then ;
 
-: random-7 ( -- rnd ) rnd abs 60 rshift dup 7 = if drop recurse then ;
-: next-piece random-7 ?piece ! ;
+: random-2 ( -- rnd ) rnd 63 rshift ;
+: random-32 ( -- rnd ) rnd 60 rshift ;
+: rot7 ( n0 n1 n2 n3 n4 n5 n6 -- n1 n2 n3 n4 n5 n6 n0 )
+>r >r >r >r >r swap r> swap r> swap r> swap r> swap r> swap ;
+: fill-bag ( -- n0 n1 n2 n3 n4 n5 n6 n7 ) 
+7 0 do i 0= if i else random-2 0= if i swap else i then then loop ;
+: mixed-bag ( -- n? n? n? n? n? n? n? )
+fill-bag random-32 1+ 0 do rot7 2swap loop ;
+: populate ( index -- )
+>r mixed-bag r> 7 *
+7 0 do
+	2dup i + cells pieces-container + ! nip
+loop drop ;
+0 populate 1 populate
+
+: next-piece
+pieces-index @ 6 = if 0 populate then
+pieces-index @ 13 = if 1 populate then
+pieces-index @ dup 1+ 14 = if drop 0 else 1+ then
+dup cells pieces-container + @ piece-type !
+pieces-index ! ;
 
 : clear-line ( index -- )
 10 0 do \ clear row
@@ -62,32 +82,27 @@ loop
 	dup 10 = if i 9 - clear-line drop 0 then
 loop drop ;
 
-variable container
-true container !
-variable carry-count
-0 carry-count !
-
 : carry
 carry-count @ 2 = if exit then
 carry-count @ 1+ carry-count !
 container @ true = if
-	?piece @ container ! random-7 ?piece !
-else ?piece @ container @ ?piece ! container ! then
+	piece-type @ container ! random-piece piece-type !
+else piece-type @ container @ piece-type ! container ! then
 6 position ! ;
 
 : up
 position @ 12 - position ! ;
 : down
-position @ 12 + orientation @ ?piece @ collision if
-	[char] # ?piece @ print-piece
+position @ 12 + orientation @ piece-type @ collision if
+	[char] # piece-type @ print-piece
 	6 position ! next-piece check-line
 	0 carry-count ! exit
 else position @ 12 + position ! then ;
 : left
-position @ 1- orientation @ ?piece @ collision if exit
+position @ 1- orientation @ piece-type @ collision if exit
 else position @ 1- position ! then ;
 : right
-position @ 1+ orientation @ ?piece @ collision if exit
+position @ 1+ orientation @ piece-type @ collision if exit
 else position @ 1+ position ! then ;
 
 : orientation++ ( orientation -- orientation++ )
@@ -96,10 +111,10 @@ dup 3 = if drop 0 else 1+ then ;
 dup 0 = if drop 3 else 1- then ;
 
 : +rotate
-position @ orientation @ orientation++ ?piece @ collision if exit
+position @ orientation @ orientation++ piece-type @ collision if exit
 else orientation @ orientation++ orientation ! then ;
 : -rotate
-position @ orientation @ orientation-- ?piece @ collision if exit
+position @ orientation @ orientation-- piece-type @ collision if exit
 else orientation @ orientation-- orientation ! then ;
 
 : log-key ( -- key )
@@ -117,10 +132,12 @@ drop ;
 
 : timed
 begin
-	[char] # ?piece @ print-piece
+	[char] # piece-type @ print-piece
 	page display-char
-	[char] . ?piece @ print-piece
+	[char] . piece-type @ print-piece
 	log-key check-key
 	cr .s container ?
+	cr pieces-container 14 cells dump
+	cr pieces-index ?
 	20 ms
 again ;
