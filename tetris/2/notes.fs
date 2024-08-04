@@ -4,3 +4,6 @@ s" Hello World"
 \ .s <2> 94142396556080 11
 type
 \ Hello World ok
+
+clearstack
+\ clears the stack
